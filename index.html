@@ -40,6 +40,7 @@
         let appSettings = { nama_desa: "Desa Tegalpanjang", logo_url: "" };
         let tempWargaData = []; // Menyimpan data dari server
         let chartInstances = []; // Menyimpan semua grafik agar bisa di-destroy
+        let isEditWargaId = null; // Menyimpan ID data yang sedang diedit
 
         const DUMMY_DB = {
             users: {
@@ -48,8 +49,8 @@
                 "rw02": { user_id: "U3", nama: "Budi (RW 02)", username: "rw02", level: "rw", rt: "", rw: "02", password: "123" }
             },
             warga: [
-                { nama: "Siti Aminah", nik: "32011111", no_kk: "320100", rt: "01", rw: "02", jenis_kelamin: "Perempuan", umur: "35", pendidikan: "SMA", pekerjaan: "Wiraswasta", penghasilan: "1 - 3 Juta", akses_internet: "WiFi Rumah", umkm: "Usaha Mikro", disabilitas: "Tidak Ada", penyakit_kronis: "Tidak Ada", kendaraan: "Sepeda: 1, Motor: 1, Mobil: 0", nama_petugas: "Ahmad" },
-                { nama: "Ujang Karman", nik: "32012222", no_kk: "320100", rt: "02", rw: "02", jenis_kelamin: "Laki-laki", umur: "45", pendidikan: "SD", pekerjaan: "Buruh", penghasilan: "< 1 Juta", akses_internet: "Paket Data", umkm: "Tidak Ada", disabilitas: "Tidak Ada", penyakit_kronis: "Tidak Ada", kendaraan: "Sepeda: 0, Motor: 1, Mobil: 0", nama_petugas: "Ahmad" }
+                { id: "W1", nama: "Siti Aminah", nik: "32011111", no_kk: "320100", rt: "01", rw: "02", jenis_kelamin: "Perempuan", umur: "35", pendidikan: "SMA", pekerjaan: "Wiraswasta", penghasilan: "1 - 3 Juta", akses_internet: "WiFi Rumah", umkm: "Usaha Mikro", disabilitas: "Tidak Ada", penyakit_kronis: "Tidak Ada", kendaraan: "Sepeda: 1, Motor: 1, Mobil: 0", nama_petugas: "Ahmad", petugas_id: "U2" },
+                { id: "W2", nama: "Ujang Karman", nik: "32012222", no_kk: "320100", rt: "02", rw: "02", jenis_kelamin: "Laki-laki", umur: "45", pendidikan: "SD", pekerjaan: "Buruh", penghasilan: "< 1 Juta", akses_internet: "Paket Data", umkm: "Tidak Ada", disabilitas: "Tidak Ada", penyakit_kronis: "Tidak Ada", kendaraan: "Sepeda: 0, Motor: 1, Mobil: 0", nama_petugas: "Ahmad", petugas_id: "U2" }
             ],
             settings: { nama_desa: "Desa Tegalpanjang", logo_url: "" }
         };
@@ -64,7 +65,7 @@
                     <img id="loginLogoImg" src="" alt="Logo" class="hidden w-full h-full object-contain">
                     <i id="loginLogoIcon" class="fa-solid fa-map-location-dot text-5xl text-pemda-green"></i>
                 </div>
-                <h1 class="text-2xl font-bold text-white mb-1">SISTEM PENDATAAN WARGA</h1>
+                <h1 class="text-2xl font-bold text-white mb-1">SIPENDWA</h1>
                 <p id="loginSubtitle" class="text-blue-200 text-sm mb-6">Memuat Identitas Desa...</p>
                 <div id="connectionStatus" class="mb-4 text-[10px] bg-blue-900/50 text-blue-200 px-3 py-1.5 rounded-lg border border-blue-800/50">Mendeteksi Mode...</div>
 
@@ -145,8 +146,9 @@
         </div>
 
         <div id="view-form" class="view-section bg-slate-50 min-h-screen">
-            <div class="bg-white px-5 py-4 shadow-sm sticky top-0 z-20">
-                <h2 class="font-bold text-lg text-pemda-blue"><i class="fa-solid fa-user-plus mr-2"></i>Form BPS Warga</h2>
+            <div class="bg-white px-5 py-4 shadow-sm sticky top-0 z-20 flex justify-between items-center">
+                <h2 id="formTitleWarga" class="font-bold text-lg text-pemda-blue"><i class="fa-solid fa-user-plus mr-2"></i>Form BPS Warga</h2>
+                <button type="button" id="btnCancelEditWarga" onclick="batalEditWarga()" class="hidden bg-slate-100 text-slate-500 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-200 transition-colors"><i class="fa-solid fa-xmark mr-1"></i> Batal Edit</button>
             </div>
             <div class="px-5 py-6">
                 <form id="wargaForm" onsubmit="saveDataWarga(event)" class="space-y-4">
@@ -267,7 +269,7 @@
                         </div>
                     </details>
 
-                    <button type="submit" class="w-full bg-pemda-blue text-white font-bold py-3.5 rounded-xl shadow-lg hover:bg-blue-800 transition-all mt-4"><i class="fa-solid fa-save mr-2"></i> Simpan Data Lengkap</button>
+                    <button type="submit" id="btnSubmitWarga" class="w-full bg-pemda-blue text-white font-bold py-3.5 rounded-xl shadow-lg hover:bg-blue-800 transition-all mt-4"><i class="fa-solid fa-save mr-2"></i> Simpan Data Lengkap</button>
                 </form>
             </div>
         </div>
@@ -345,7 +347,12 @@
                     }
                     else if(act === 'getStats') resolve({ success: true, stats: { total: 2, laki: 1, perempuan: 1, balita: 0, lansia: 0, kk: 2 } });
                     else if(act === 'getWarga') resolve({ success: true, data: DUMMY_DB.warga, total: DUMMY_DB.warga.length });
-                    else if(act === 'addWarga') { DUMMY_DB.warga.unshift(payload.warga); resolve({ success: true, message: "Tersimpan!" }); }
+                    else if(act === 'addWarga') { payload.warga.id = 'W'+Date.now(); DUMMY_DB.warga.unshift(payload.warga); resolve({ success: true, message: "Tersimpan!" }); }
+                    else if(act === 'updateWarga') {
+                        const idx = DUMMY_DB.warga.findIndex(w => w.id === payload.id);
+                        if(idx > -1) Object.assign(DUMMY_DB.warga[idx], payload.warga);
+                        resolve({ success: true, message: "Data Diperbarui!" });
+                    }
                     else if(act === 'getPetugas') resolve({ success: true, data: Object.values(DUMMY_DB.users) });
                     else resolve({ success: false, message: "Mock Action Unknown" });
                 }, 600);
@@ -422,9 +429,17 @@
             const sep = document.getElementById('kSepeda').value, mot = document.getElementById('kMotor').value, mob = document.getElementById('kMobil').value;
             formObj.kendaraan = `Sepeda:${sep}, Motor:${mot}, Mobil:${mob}`;
             
+            const payloadAction = isEditWargaId ? 'updateWarga' : 'addWarga';
+            const payload = { action: payloadAction, token: authToken, warga: formObj };
+            if (isEditWargaId) payload.id = isEditWargaId;
+
             Swal.fire({ title: 'Menyimpan...', didOpen: () => Swal.showLoading() });
-            const res = await apiCall({ action: 'addWarga', token: authToken, warga: formObj });
-            if(res.success) { Swal.fire('Tersimpan!', res.message, 'success'); e.target.reset(); switchView('data'); }
+            const res = await apiCall(payload);
+            if(res.success) { 
+                Swal.fire('Tersimpan!', res.message, 'success'); 
+                batalEditWarga();
+                switchView('data'); 
+            }
             else { Swal.fire('Gagal', res.message, 'error'); }
         }
 
@@ -453,18 +468,80 @@
 
         function renderWargaList(list) {
             const container = document.getElementById('wargaListContainer');
-            if(list.length === 0) container.innerHTML = '<p class="text-center text-xs">Kosong</p>';
-            else container.innerHTML = list.map(w => `
-                <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex items-center">
-                    <div class="w-10 h-10 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center mr-3"><i class="fa-solid fa-user"></i></div>
-                    <div class="flex-1">
-                        <h4 class="text-sm font-bold text-slate-800">${w.nama || '-'}</h4>
-                        <p class="text-[10px] text-slate-500">NIK: ${w.nik||'-'} | RT ${w.rt||'-'}/RW ${w.rw||'-'}</p>
+            if(list.length === 0) { container.innerHTML = '<p class="text-center text-xs">Kosong</p>'; return; }
+            
+            container.innerHTML = list.map(w => {
+                const canEdit = currentUser.level === 'admin' || w.petugas_id === currentUser.user_id;
+                return `
+                <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex flex-col mb-2">
+                    <div class="flex justify-between items-center border-b border-slate-50 pb-2 mb-2">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center mr-3"><i class="fa-solid fa-user"></i></div>
+                            <div>
+                                <h4 class="text-sm font-bold text-slate-800">${w.nama || '-'}</h4>
+                                <p class="text-[10px] text-slate-500">NIK: ${w.nik||'-'} | RT ${w.rt||'-'}/RW ${w.rw||'-'}</p>
+                            </div>
+                        </div>
+                        <div class="text-[9px] text-right text-pemda-blue bg-blue-50 px-2 py-1 rounded">Oleh: ${w.nama_petugas||'-'}</div>
                     </div>
-                    <div class="text-[9px] text-right text-pemda-blue bg-blue-50 px-2 py-1 rounded">Oleh: ${w.nama_petugas||'-'}</div>
-                </div>`).join('');
+                    ${canEdit ? `
+                    <div class="flex justify-end">
+                        <button onclick="editWarga('${w.id}')" class="text-[10px] bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg border border-amber-200 hover:bg-amber-100 transition-colors font-bold shadow-sm"><i class="fa-solid fa-pen mr-1"></i> Edit Data</button>
+                    </div>` : ''}
+                </div>`
+            }).join('');
         }
         function searchWargaLocal() { const q = document.getElementById('searchData').value.toLowerCase(); renderWargaList(tempWargaData.filter(w => (w.nama&&w.nama.toLowerCase().includes(q)) || (w.nik&&String(w.nik).includes(q)))); }
+
+        function editWarga(id) {
+            const w = tempWargaData.find(x => x.id === id);
+            if(!w) return;
+            
+            isEditWargaId = id;
+            document.getElementById('formTitleWarga').innerHTML = '<i class="fa-solid fa-pen-to-square mr-2 text-amber-500"></i>Edit Data Warga';
+            document.getElementById('btnCancelEditWarga').classList.remove('hidden');
+            
+            const btnSubmit = document.getElementById('btnSubmitWarga');
+            btnSubmit.innerHTML = '<i class="fa-solid fa-cloud-arrow-up mr-2"></i> Update Data Warga';
+            btnSubmit.classList.replace('bg-pemda-blue', 'bg-amber-500');
+            btnSubmit.classList.replace('hover:bg-blue-800', 'hover:bg-amber-600');
+            
+            // Populate Form otomatis dari objek
+            const form = document.getElementById('wargaForm');
+            Array.from(form.elements).forEach(el => {
+                if(el.name && w[el.name] !== undefined) el.value = w[el.name];
+            });
+            
+            // Logika spesifik Kendaraan
+            if(w.kendaraan) {
+                const sep = w.kendaraan.match(/Sepeda:\s*(\d+)/i);
+                const mot = w.kendaraan.match(/Motor:\s*(\d+)/i);
+                const mob = w.kendaraan.match(/Mobil:\s*(\d+)/i);
+                document.getElementById('kSepeda').value = sep ? sep[1] : 0;
+                document.getElementById('kMotor').value = mot ? mot[1] : 0;
+                document.getElementById('kMobil').value = mob ? mob[1] : 0;
+            }
+            
+            hitungUmur(); // Sinkronisasi field umur
+            switchView('form');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function batalEditWarga() {
+            isEditWargaId = null;
+            document.getElementById('wargaForm').reset();
+            document.getElementById('kSepeda').value = 0;
+            document.getElementById('kMotor').value = 0;
+            document.getElementById('kMobil').value = 0;
+            
+            document.getElementById('formTitleWarga').innerHTML = '<i class="fa-solid fa-user-plus mr-2"></i>Form BPS Warga';
+            document.getElementById('btnCancelEditWarga').classList.add('hidden');
+            
+            const btnSubmit = document.getElementById('btnSubmitWarga');
+            btnSubmit.innerHTML = '<i class="fa-solid fa-save mr-2"></i> Simpan Data Lengkap';
+            btnSubmit.classList.replace('bg-amber-500', 'bg-pemda-blue');
+            btnSubmit.classList.replace('hover:bg-amber-600', 'hover:bg-blue-800');
+        }
 
         function renderDashboardAnalitik() {
             // Kalkulasi Dasar
@@ -482,21 +559,53 @@
             if(d.length === 0) { container.innerHTML = '<p class="text-center text-xs">Belum ada data untuk grafik.</p>'; return; }
             container.innerHTML = '';
 
-            // Helper Pembuat Grafik
-            const createChartCard = (title, field, type='doughnut', colors) => {
-                const map = {}; d.forEach(x => { const v = x[field] || 'Lainnya'; map[v] = (map[v]||0)+1; });
-                const wrap = document.createElement('div'); wrap.className = 'bg-white rounded-2xl p-4 shadow-sm border border-slate-100';
+            // Helper Pembuat Grafik Dinamis
+            const createChartCardFromData = (title, mapData, type='doughnut', colors) => {
+                const wrap = document.createElement('div'); wrap.className = 'bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-4';
                 wrap.innerHTML = `<h3 class="font-bold text-slate-700 text-xs mb-3 text-center">${title}</h3><div class="relative h-48 w-full"><canvas></canvas></div>`;
                 container.appendChild(wrap);
                 const ctx = wrap.querySelector('canvas').getContext('2d');
-                chartInstances.push(new Chart(ctx, { type: type, data: { labels: Object.keys(map), datasets: [{ data: Object.values(map), backgroundColor: colors, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: {boxWidth:10, font:{size:9}} } } } }));
+                chartInstances.push(new Chart(ctx, { type: type, data: { labels: Object.keys(mapData), datasets: [{ data: Object.values(mapData), backgroundColor: colors, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: {boxWidth:10, font:{size:9}} } } } }));
             };
 
-            // Render Berbagai Grafik Sesuai Permintaan
-            createChartCard('<i class="fa-solid fa-graduation-cap text-blue-500 mr-1"></i> Demografi Pendidikan', 'pendidikan', 'doughnut', ['#3b82f6','#ec4899','#f59e0b','#10b981','#8b5cf6','#ef4444','#64748b','#14b8a6']);
-            createChartCard('<i class="fa-solid fa-briefcase text-orange-500 mr-1"></i> Distribusi Pekerjaan', 'pekerjaan', 'pie', ['#f97316','#06b6d4','#84cc16','#d946ef','#64748b']);
-            createChartCard('<i class="fa-solid fa-wifi text-emerald-500 mr-1"></i> Akses Internet', 'akses_internet', 'doughnut', ['#10b981','#f43f5e','#3b82f6','#a855f7']);
-            createChartCard('<i class="fa-solid fa-store text-purple-500 mr-1"></i> Status Ekonomi (UMKM)', 'umkm', 'pie', ['#a855f7','#f59e0b','#ec4899','#3b82f6']);
+            // 1. Pendidikan
+            const pendMap = {}; d.forEach(x => { const v = x.pendidikan || 'Lainnya'; pendMap[v] = (pendMap[v]||0)+1; });
+            createChartCardFromData('<i class="fa-solid fa-graduation-cap text-blue-500 mr-1"></i> Demografi Pendidikan', pendMap, 'doughnut', ['#3b82f6','#ec4899','#f59e0b','#10b981','#8b5cf6','#ef4444','#64748b','#14b8a6']);
+            
+            // 2. Umur / Kelompok Usia
+            const umurMap = {'Balita (0-5)':0, 'Anak (6-17)':0, 'Dewasa (18-59)':0, 'Lansia (60+)':0};
+            d.forEach(x => {
+                const u = Number(x.umur);
+                if(u<=5) umurMap['Balita (0-5)']++;
+                else if(u<=17) umurMap['Anak (6-17)']++;
+                else if(u<=59) umurMap['Dewasa (18-59)']++;
+                else umurMap['Lansia (60+)']++;
+            });
+            createChartCardFromData('<i class="fa-solid fa-child text-pink-500 mr-1"></i> Kelompok Usia (Umur)', umurMap, 'pie', ['#f43f5e','#8b5cf6','#3b82f6','#10b981']);
+
+            // 3. Status Ekonomi (UMKM)
+            const umkmMap = {}; d.forEach(x => { const v = x.umkm || 'Lainnya'; umkmMap[v] = (umkmMap[v]||0)+1; });
+            createChartCardFromData('<i class="fa-solid fa-store text-purple-500 mr-1"></i> Status Ekonomi (UMKM)', umkmMap, 'pie', ['#a855f7','#f59e0b','#ec4899','#3b82f6']);
+
+            // 4. Status Rumah
+            const rumahMap = {}; d.forEach(x => { const v = x.status_rumah || 'Lainnya'; rumahMap[v] = (rumahMap[v]||0)+1; });
+            createChartCardFromData('<i class="fa-solid fa-house-chimney text-orange-500 mr-1"></i> Status Kepemilikan Rumah', rumahMap, 'doughnut', ['#f97316','#06b6d4','#84cc16','#d946ef']);
+
+            // 5. Kepemilikan Kendaraan
+            const kendMap = {'Punya Sepeda':0, 'Punya Motor':0, 'Punya Mobil':0, 'Tidak Punya':0};
+            d.forEach(x => {
+                let has = false;
+                if(x.kendaraan) {
+                    const sep = x.kendaraan.match(/Sepeda:\s*(\d+)/i);
+                    const mot = x.kendaraan.match(/Motor:\s*(\d+)/i);
+                    const mob = x.kendaraan.match(/Mobil:\s*(\d+)/i);
+                    if(sep && Number(sep[1])>0) { kendMap['Punya Sepeda']++; has=true; }
+                    if(mot && Number(mot[1])>0) { kendMap['Punya Motor']++; has=true; }
+                    if(mob && Number(mob[1])>0) { kendMap['Punya Mobil']++; has=true; }
+                }
+                if(!has) kendMap['Tidak Punya']++;
+            });
+            createChartCardFromData('<i class="fa-solid fa-car text-emerald-500 mr-1"></i> Kepemilikan Kendaraan', kendMap, 'bar', ['#10b981','#f59e0b','#3b82f6','#94a3b8']);
         }
 
         async function loadAdminUsers() {
